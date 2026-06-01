@@ -1,2 +1,32 @@
+# 의존성
 node_modules/
+
+# 환경변수 (절대 올리면 안 됨)
 .env
+.env.local
+.env.*.local
+
+# 로그
+*.log
+npm-debug.log*
+logs/
+
+# 빌드 결과물
+dist/
+build/
+
+# 에디터 설정 (팀원마다 다르니 제외)
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS 찌꺼기
+.DS_Store        # Mac 사용 팀원 있으면 필수
+Thumbs.db
+
+# 테스트 커버리지
+coverage/
+
+# 업로드 파일 (나중에 생길 때 대비)
+uploads/
