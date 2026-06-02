@@ -40,7 +40,7 @@ CREATE TABLE user_locations (
 );
 
 -- 그룹 (채팅방)
-CREATE TABLE groups (
+CREATE TABLE `groups` (
     id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(100),
     status      ENUM('active', 'expired', 'met') DEFAULT 'active',
@@ -55,7 +55,7 @@ CREATE TABLE group_members (
     user_id   BIGINT UNSIGNED NOT NULL,
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (group_id, user_id),
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE
 );
 
@@ -66,7 +66,7 @@ CREATE TABLE messages (
     sender_id  BIGINT UNSIGNED NOT NULL,
     content    TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_id)  REFERENCES groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id)  REFERENCES `groups`(id) ON DELETE CASCADE,
     FOREIGN KEY (sender_id) REFERENCES users(id)  ON DELETE CASCADE,
     INDEX idx_group_created (group_id, created_at)
 );
@@ -80,7 +80,7 @@ CREATE TABLE footprints (
     longitude  DECIMAL(11, 8),
     met_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE,
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+    FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE
 );
 
 -- 신고
