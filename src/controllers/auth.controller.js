@@ -126,3 +126,28 @@ exports.refreshToken = async (req, res) => {
     return res.status(401).json({ message: '리프레시 토큰이 만료되었습니다.' });
   }
 };
+
+// 개발용 테스트 로그인 (NODE_ENV=development 일 때만 작동)
+exports.devLogin = async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(404).json({ message: 'Not found' });
+  }
+  const { nickname = '테스트유저' } = req.body;
+
+  const [result] = await db.execute(
+    `INSERT INTO users (kakao_id, nickname)
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE nickname = VALUES(nickname)`,
+    [`dev_test_user`, nickname]
+  );
+
+  let userId = result.insertId;
+  if (userId === 0) {
+    const [[user]] = await db.execute(
+      'SELECT id FROM users WHERE kakao_id = ?', ['dev_test_user']
+    );
+    userId = user.id;
+  }
+
+  return res.json({ ...generateTokens(userId, nickname), userId });
+};
