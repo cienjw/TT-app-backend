@@ -7,5 +7,6 @@ router.get('/me',              auth, user.getMe);
 router.put('/me/interests',    auth, user.updateInterests);
 router.put('/me/location',     auth, user.updateLocation);
 router.get('/interests',       auth, user.getAllInterests);
+router.put('/me', auth, user.updateProfile);
 
 module.exports = router;

@@ -57,3 +57,19 @@ exports.updateLocation = async (req, res) => {
   );
   return res.json({ message: 'ok' });
 };
+
+exports.updateProfile = async (req, res) => {
+  const { nickname, profile_img } = req.body;
+  const userId = req.user.userId;
+
+  if (!nickname?.trim()) {
+    return res.status(400).json({ message: '닉네임을 입력해주세요.' });
+  }
+
+  await db.execute(
+    'UPDATE users SET nickname = ?, profile_img = ? WHERE id = ?',
+    [nickname.trim(), profile_img ?? null, userId]
+  );
+
+  return res.json({ message: 'ok' });
+};
