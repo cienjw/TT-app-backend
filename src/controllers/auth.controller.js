@@ -70,6 +70,11 @@ exports.kakaoLogin = async (req, res) => {
     // 4. 신규 유저 여부 반환 (Flutter에서 관심사 입력 화면으로 보낼지 판단)
     const isNewUser = result.insertId !== 0;
 
+    // 신규 가입자면 환영 그룹 자동 생성
+    if (isNewUser) {
+      await createWelcomeGroup(userId);
+    }
+
     return res.json({ ...tokens, isNewUser, userId });
   } catch (err) {
     console.error('Kakao login error:', err.message);
@@ -116,6 +121,10 @@ exports.googleLogin = async (req, res) => {
     const tokens = generateTokens(userId, nickname);
     const isNewUser = result.insertId !== 0;
 
+    if (isNewUser) {
+      await createWelcomeGroup(userId);
+    }
+    
     return res.json({ ...tokens, isNewUser, userId });
   } catch (err) {
     console.error('Google login error:', err.message);

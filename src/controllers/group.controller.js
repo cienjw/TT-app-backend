@@ -61,3 +61,31 @@ exports.getGroupDetail = async (req, res) => {
 
   return res.json({ ...group, members });
 };
+
+// GET /api/groups/:id/messages — 채팅방 메시지 기록 (페이지네이션)
+exports.getMessages = async (req, res) => {
+  const groupId = req.params.id;
+
+  // 멤버 여부 확인
+  const [[member]] = await db.execute(
+    'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
+    [groupId, req.user.userId]
+  );
+  if (!member) {
+    return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
+  }
+
+  // 최근 50개, 오래된 순으로 정렬해서 반환
+  const [messages] = await db.execute(
+    `SELECT m.id, m.content, m.sender_id, m.created_at,
+            u.nickname AS sender_nickname, u.profile_img AS sender_profile_img
+     FROM messages m
+     JOIN users u ON m.sender_id = u.id
+     WHERE m.group_id = ?
+     ORDER BY m.created_at DESC
+     LIMIT 50`,
+    [groupId]
+  );
+
+  return res.json(messages.reverse()); // 오래된 → 최신 순으로
+};
