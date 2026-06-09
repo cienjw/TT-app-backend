@@ -3,7 +3,6 @@ const router  = express.Router();
 const auth    = require('../middlewares/auth.middleware');
 const group   = require('../controllers/group.controller');
 
-router.get('/',     auth, group.getMyGroups);
-router.get('/:id',  auth, group.getGroupDetail);
+router.post('/join', auth, group.joinMatching);
 
 module.exports = router;

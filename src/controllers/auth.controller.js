@@ -17,6 +17,19 @@ function generateTokens(userId, nickname) {
   return { accessToken, refreshToken };
 }
 
+// 신규 가입자에게 환영 그룹 1개 자동 생성
+async function createWelcomeGroup(userId) {
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const [result] = await db.execute(
+    'INSERT INTO `groups` (name, expires_at) VALUES (?, ?)',
+    ['첫 모임에 오신 걸 환영해요', expiresAt]
+  );
+  await db.execute(
+    'INSERT INTO group_members (group_id, user_id) VALUES (?, ?)',
+    [result.insertId, userId]
+  );
+}
+
 // POST /api/auth/kakao
 exports.kakaoLogin = async (req, res) => {
   const { access_token } = req.body;
@@ -134,20 +147,16 @@ exports.devLogin = async (req, res) => {
   }
   const { nickname = '테스트유저' } = req.body;
 
+  // 매번 고유한 테스트 유저 생성 (여러 명 매칭 시뮬레이션용)
+  const uniqueId = `dev_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const [result] = await db.execute(
-    `INSERT INTO users (kakao_id, nickname)
-     VALUES (?, ?)
-     ON DUPLICATE KEY UPDATE nickname = VALUES(nickname)`,
-    [`dev_test_user`, nickname]
+    'INSERT INTO users (kakao_id, nickname) VALUES (?, ?)',
+    [uniqueId, nickname]
   );
+  const userId = result.insertId;
 
-  let userId = result.insertId;
-  if (userId === 0) {
-    const [[user]] = await db.execute(
-      'SELECT id FROM users WHERE kakao_id = ?', ['dev_test_user']
-    );
-    userId = user.id;
-  }
+  // 신규 가입자 환영 그룹
+  await createWelcomeGroup(userId);
 
   return res.json({ ...generateTokens(userId, nickname), userId });
 };
