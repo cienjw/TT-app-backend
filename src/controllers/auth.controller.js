@@ -47,35 +47,32 @@ exports.kakaoLogin = async (req, res) => {
     const nickname  = kakaoUser.kakao_account?.profile?.nickname || '익명';
     const profileImg = kakaoUser.kakao_account?.profile?.profile_image_url;
 
-    // 2. DB upsert (없으면 생성, 있으면 정보 업데이트)
-    const [result] = await db.execute(
-      `INSERT INTO users (kakao_id, nickname, profile_img)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), profile_img = VALUES(profile_img)`,
-      [kakaoId, nickname, profileImg]
+    // 2. 기존 유저 조회
+    const [[existing]] = await db.execute(
+      'SELECT id FROM users WHERE kakao_id = ?', [kakaoId]
     );
 
-    // insertId가 0이면 기존 유저 (ON DUPLICATE KEY 실행)
-    let userId = result.insertId;
-    if (userId === 0) {
-      const [[user]] = await db.execute(
-        'SELECT id FROM users WHERE kakao_id = ?', [kakaoId]
+    let userId;
+    let isNewUser;
+
+    if (existing) {
+      // 기존 유저 — 닉네임 건드리지 않음 (사용자가 온보딩에서 정한 값 유지)
+      userId = existing.id;
+      isNewUser = false;
+    } else {
+      // 신규 유저 — 카카오 닉네임으로 일단 생성 (온보딩에서 바꿀 예정)
+      const [result] = await db.execute(
+        'INSERT INTO users (kakao_id, nickname, profile_img) VALUES (?, ?, ?)',
+        [kakaoId, nickname, profileImg]
       );
-      userId = user.id;
+      userId = result.insertId;
+      isNewUser = true;
+      await createWelcomeGroup(userId);  // 신규일 때만 환영 그룹
     }
 
-    // 3. JWT 발급
     const tokens = generateTokens(userId, nickname);
-
-    // 4. 신규 유저 여부 반환 (Flutter에서 관심사 입력 화면으로 보낼지 판단)
-    const isNewUser = result.insertId !== 0;
-
-    // 신규 가입자면 환영 그룹 자동 생성
-    if (isNewUser) {
-      await createWelcomeGroup(userId);
-    }
-
     return res.json({ ...tokens, isNewUser, userId });
+
   } catch (err) {
     console.error('Kakao login error:', err.message);
     return res.status(500).json({ message: '카카오 로그인 처리 중 오류가 발생했습니다.' });
@@ -103,29 +100,30 @@ exports.googleLogin = async (req, res) => {
     const nickname  = googleUser.name || '익명';
     const profileImg = googleUser.picture;
 
-    const [result] = await db.execute(
-      `INSERT INTO users (google_id, nickname, profile_img)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), profile_img = VALUES(profile_img)`,
-      [googleId, nickname, profileImg]
+    // 기존 유저 조회
+    const [[existing]] = await db.execute(
+      'SELECT id FROM users WHERE google_id = ?', [googleId]
     );
 
-    let userId = result.insertId;
-    if (userId === 0) {
-      const [[user]] = await db.execute(
-        'SELECT id FROM users WHERE google_id = ?', [googleId]
+    let userId;
+    let isNewUser;
+
+    if (existing) {
+      userId = existing.id;
+      isNewUser = false;
+    } else {
+      const [result] = await db.execute(
+        'INSERT INTO users (google_id, nickname, profile_img) VALUES (?, ?, ?)',
+        [googleId, nickname, profileImg]
       );
-      userId = user.id;
+      userId = result.insertId;
+      isNewUser = true;
+      await createWelcomeGroup(userId);
     }
 
     const tokens = generateTokens(userId, nickname);
-    const isNewUser = result.insertId !== 0;
-
-    if (isNewUser) {
-      await createWelcomeGroup(userId);
-    }
-    
     return res.json({ ...tokens, isNewUser, userId });
+    
   } catch (err) {
     console.error('Google login error:', err.message);
     return res.status(500).json({ message: '구글 로그인 처리 중 오류가 발생했습니다.' });
