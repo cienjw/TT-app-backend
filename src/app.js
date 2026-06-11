@@ -4,6 +4,7 @@ const cors    = require('cors');
 const helmet  = require('helmet');
 const morgan  = require('morgan');
 const matchingRoutes = require('./routes/matching.routes');
+const footprintRoutes = require('./routes/footprint.routes');
 require('dotenv').config();
 
 const authRoutes  = require('./routes/auth.routes');
@@ -25,6 +26,7 @@ app.use('/api/auth',   authRoutes);
 app.use('/api/users',  userRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/matching', matchingRoutes);
+app.use('/api/footprints', footprintRoutes);
 
 // 헬스체크
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
