@@ -8,7 +8,7 @@ function initSocket(server) {
   });
 
   // 1. 소켓 인증 미들웨어 — 연결 시 JWT 검증
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) {
       return next(new Error('인증 토큰이 없습니다.'));
@@ -17,11 +17,15 @@ function initSocket(server) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.userId;
       socket.nickname = decoded.nickname;
-      next();
-    } catch (err) {
-      next(new Error('유효하지 않은 토큰입니다.'));
-    }
-  });
+      const [[user]] = await db.execute(
+      'SELECT profile_img FROM users WHERE id = ?', [decoded.userId]
+    );
+    socket.profileImg = user?.profile_img ?? null;
+    next();
+  } catch (err) {
+    next(new Error('유효하지 않은 토큰입니다.'));
+  }
+});
 
   // 2. 연결 이벤트
   io.on('connection', (socket) => {
@@ -83,11 +87,13 @@ function initSocket(server) {
           id: result.insertId,
           group_id: groupId,
           sender_id: socket.userId,
-          sender_nickname: sender.nickname,
+          sender_nickname: socket.nickname,
           sender_profile_img: sender.profile_img,
           content: content.trim(),
           created_at: new Date().toISOString(),
+          reactions: [],
         };
+        
         io.to(`group_${groupId}`).emit('new_message', message);
       } catch (err) {
         console.error('send_message error:', err.message);
@@ -95,10 +101,65 @@ function initSocket(server) {
       }
     });
 
+    // 반응 토글 (있으면 제거, 없으면 추가)
+    socket.on('toggle_reaction', async ({ messageId, reaction }) => {
+      try {
+        // 이미 눌렀는지 확인
+        const [[existing]] = await db.execute(
+          'SELECT id FROM message_reactions WHERE message_id = ? AND user_id = ? AND reaction = ?',
+          [messageId, socket.userId, reaction]
+        );
+
+        if (existing) {
+          await db.execute('DELETE FROM message_reactions WHERE id = ?', [existing.id]);
+        } else {
+          await db.execute(
+            'INSERT INTO message_reactions (message_id, user_id, reaction) VALUES (?, ?, ?)',
+            [messageId, socket.userId, reaction]
+          );
+        }
+
+        // 어느 방에 알릴지 group_id 조회
+        const [[msg]] = await db.execute(
+          'SELECT group_id FROM messages WHERE id = ?', [messageId]
+        );
+        if (!msg) return;
+
+        // 이 메시지의 반응 집계 (종류별 카운트 + 누른 사람 목록)
+        const [rows] = await db.execute(
+          `SELECT reaction, COUNT(*) AS count,
+                  JSON_ARRAYAGG(user_id) AS user_ids
+          FROM message_reactions
+          WHERE message_id = ?
+          GROUP BY reaction`,
+          [messageId]
+        );
+
+        const reactions = rows.map((r) => ({
+          reaction: r.reaction,
+          count: Number(r.count),
+          userIds: typeof r.user_ids === 'string'
+              ? JSON.parse(r.user_ids)
+              : r.user_ids,
+        }));
+
+        io.to(`group_${msg.group_id}`).emit('reaction_updated', {
+          messageId,
+          reactions,
+        });
+      } catch (err) {
+        console.error('toggle_reaction error:', err.message);
+        socket.emit('error_message', '반응 처리 중 오류가 발생했습니다.');
+      }
+    });
+    
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: user ${socket.userId}`);
     });
   });
+
+  // 반응 토글
+
 
   return io;
 }
