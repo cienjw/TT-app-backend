@@ -66,7 +66,6 @@ exports.getGroupDetail = async (req, res) => {
 exports.getMessages = async (req, res) => {
   const groupId = req.params.id;
 
-  // 멤버 여부 확인
   const [[member]] = await db.execute(
     'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
     [groupId, req.user.userId]
@@ -75,7 +74,6 @@ exports.getMessages = async (req, res) => {
     return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
   }
 
-  // 최근 50개, 오래된 순으로 정렬해서 반환
   const [messages] = await db.execute(
     `SELECT m.id, m.content, m.sender_id, m.created_at,
             u.nickname AS sender_nickname, u.profile_img AS sender_profile_img
@@ -87,5 +85,38 @@ exports.getMessages = async (req, res) => {
     [groupId]
   );
 
-  return res.json(messages.reverse()); // 오래된 → 최신 순으로
+  if (messages.length === 0) return res.json([]);
+
+  // 반응 집계 (실패해도 메시지는 그대로 반환)
+  const reactionMap = {};
+  try {
+    const msgIds = messages.map((m) => m.id);
+    const placeholders = msgIds.map(() => '?').join(',');
+    const [reactionRows] = await db.query(   // ← execute가 아니라 query
+      `SELECT message_id, reaction, COUNT(*) AS count,
+              JSON_ARRAYAGG(user_id) AS user_ids
+       FROM message_reactions
+       WHERE message_id IN (${placeholders})
+       GROUP BY message_id, reaction`,
+      msgIds
+    );
+    for (const r of reactionRows) {
+      (reactionMap[r.message_id] ??= []).push({
+        reaction: r.reaction,
+        count: Number(r.count),
+        userIds: typeof r.user_ids === 'string'
+            ? JSON.parse(r.user_ids)
+            : r.user_ids,
+      });
+    }
+  } catch (e) {
+    console.error('### reaction 집계 실패:', e.message);
+  }
+
+  const result = messages.map((m) => ({
+    ...m,
+    reactions: reactionMap[m.id] || [],
+  }));
+
+  return res.json(result.reverse());
 };

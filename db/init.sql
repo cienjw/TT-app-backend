@@ -84,6 +84,18 @@ CREATE TABLE footprints (
     FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE
 );
 
+-- 반응
+CREATE TABLE message_reactions (
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    message_id  BIGINT UNSIGNED NOT NULL,
+    user_id     BIGINT UNSIGNED NOT NULL,
+    reaction    VARCHAR(20) NOT NULL,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE,
+    UNIQUE KEY  uq_reaction  (message_id, user_id, reaction)
+);
+
 -- 신고
 CREATE TABLE reports (
     id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -103,6 +103,7 @@ function initSocket(server) {
 
     // 반응 토글 (있으면 제거, 없으면 추가)
     socket.on('toggle_reaction', async ({ messageId, reaction }) => {
+      console.log('### toggle_reaction 수신:', messageId, reaction);
       try {
         // 이미 눌렀는지 확인
         const [[existing]] = await db.execute(
@@ -143,6 +144,7 @@ function initSocket(server) {
               : r.user_ids,
         }));
 
+        console.log('### reaction_updated 발송:', msg.group_id, JSON.stringify(reactions));
         io.to(`group_${msg.group_id}`).emit('reaction_updated', {
           messageId,
           reactions,
