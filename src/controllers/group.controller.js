@@ -75,13 +75,16 @@ exports.getMessages = async (req, res) => {
   }
 
   const [messages] = await db.execute(
-    `SELECT m.id, m.content, m.sender_id, m.created_at,
-            u.nickname AS sender_nickname, u.profile_img AS sender_profile_img
-     FROM messages m
-     JOIN users u ON m.sender_id = u.id
-     WHERE m.group_id = ?
-     ORDER BY m.created_at DESC
-     LIMIT 50`,
+    `SELECT m.id, m.content, m.sender_id, m.created_at, m.reply_to_id,
+            u.nickname AS sender_nickname, u.profile_img AS sender_profile_img,
+            rm.content AS reply_content, ru.nickname AS reply_sender_nickname
+    FROM messages m
+    JOIN users u ON m.sender_id = u.id
+    LEFT JOIN messages rm ON m.reply_to_id = rm.id
+    LEFT JOIN users ru ON rm.sender_id = ru.id
+    WHERE m.group_id = ?
+    ORDER BY m.created_at DESC
+    LIMIT 50`,
     [groupId]
   );
 
@@ -114,7 +117,19 @@ exports.getMessages = async (req, res) => {
   }
 
   const result = messages.map((m) => ({
-    ...m,
+    id: m.id,
+    content: m.content,
+    sender_id: m.sender_id,
+    created_at: m.created_at,
+    sender_nickname: m.sender_nickname,
+    sender_profile_img: m.sender_profile_img,
+    reply_to: m.reply_to_id
+      ? {
+          id: m.reply_to_id,
+          content: m.reply_content,
+          sender_nickname: m.reply_sender_nickname,
+        }
+      : null,
     reactions: reactionMap[m.id] || [],
   }));
 

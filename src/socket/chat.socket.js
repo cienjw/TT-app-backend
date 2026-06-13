@@ -56,11 +56,9 @@ function initSocket(server) {
     });
 
     // 메시지 전송
-    socket.on('send_message', async ({ groupId, content }) => {
+    socket.on('send_message', async ({ groupId, content, replyToId }) => {  // ← replyToId 추가
       if (!content?.trim()) return;
-
       try {
-        // 멤버 재검증 (보안)
         const [[member]] = await db.execute(
           'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
           [groupId, socket.userId]
@@ -70,19 +68,35 @@ function initSocket(server) {
           return;
         }
 
-        // DB 저장
+        // DB 저장 (reply_to_id 포함)
         const [result] = await db.execute(
-          'INSERT INTO messages (group_id, sender_id, content) VALUES (?, ?, ?)',
-          [groupId, socket.userId, content.trim()]
+          'INSERT INTO messages (group_id, sender_id, content, reply_to_id) VALUES (?, ?, ?, ?)',
+          [groupId, socket.userId, content.trim(), replyToId ?? null]
         );
 
-        // 발신자 정보 조회
         const [[sender]] = await db.execute(
           'SELECT nickname, profile_img FROM users WHERE id = ?',
           [socket.userId]
         );
 
-        // 방 전체에 브로드캐스트 (발신자 포함)
+        // 답장 대상 원본 조회 (replyToId 있을 때만)
+        let replyTo = null;
+        if (replyToId) {
+          const [[orig]] = await db.execute(
+            `SELECT m.id, m.content, u.nickname AS sender_nickname
+            FROM messages m JOIN users u ON m.sender_id = u.id
+            WHERE m.id = ?`,
+            [replyToId]
+          );
+          if (orig) {
+            replyTo = {
+              id: orig.id,
+              content: orig.content,
+              sender_nickname: orig.sender_nickname,
+            };
+          }
+        }
+
         const message = {
           id: result.insertId,
           group_id: groupId,
@@ -92,8 +106,8 @@ function initSocket(server) {
           content: content.trim(),
           created_at: new Date().toISOString(),
           reactions: [],
+          reply_to: replyTo,   // ← 추가 (없으면 null)
         };
-        
         io.to(`group_${groupId}`).emit('new_message', message);
       } catch (err) {
         console.error('send_message error:', err.message);

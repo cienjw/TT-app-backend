@@ -62,13 +62,15 @@ CREATE TABLE group_members (
 
 -- 채팅 메시지
 CREATE TABLE messages (
-    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    group_id   BIGINT UNSIGNED NOT NULL,
-    sender_id  BIGINT UNSIGNED NOT NULL,
-    content    TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_id)  REFERENCES `groups`(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id)  ON DELETE CASCADE,
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    group_id    BIGINT UNSIGNED NOT NULL,
+    sender_id   BIGINT UNSIGNED NOT NULL,
+    content     TEXT NOT NULL,
+    reply_to_id BIGINT UNSIGNED NULL,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (group_id)    REFERENCES `groups`(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id)   REFERENCES users(id)    ON DELETE CASCADE,
+    CONSTRAINT fk_reply_to FOREIGN KEY (reply_to_id) REFERENCES messages(id) ON DELETE SET NULL,
     INDEX idx_group_created (group_id, created_at)
 );
 
