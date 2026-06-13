@@ -73,3 +73,63 @@ exports.updateProfile = async (req, res) => {
 
   return res.json({ message: 'ok' });
 };
+
+const FIELD_TO_INTERESTS = {
+  tech:    ['프로그래밍', '게임'],
+  content: ['영화/드라마', '독서', '음악 감상'],
+  art:     ['그림/일러스트', '사진'],
+  social:  ['카페 탐방', '맛집 탐방', '여행'],
+  sport:   ['운동/헬스', '등산', '사이클'],
+  making:  ['요리', '그림/일러스트', '프로그래밍'],
+};
+
+exports.saveSurvey = async (req, res) => {
+  const { fields, depth, virtuality, collab, purpose, mbti } = req.body;
+  const userId = req.user.userId;
+
+  // 분야 → 관심사 태그 이름 집합
+  const names = new Set();
+  for (const f of (fields || [])) {
+    (FIELD_TO_INTERESTS[f] || []).forEach((n) => names.add(n));
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 성향 + MBTI 저장
+    await conn.execute(
+      `UPDATE users
+         SET survey_depth = ?, survey_virtuality = ?,
+             survey_collab = ?, survey_purpose = ?, mbti = ?
+       WHERE id = ?`,
+      [depth ?? null, virtuality ?? null,
+       collab ?? null, purpose ?? null, mbti ?? null, userId]
+    );
+
+    // 분야 → 관심사 태그로 user_interests 갱신
+    if (names.size > 0) {
+      const [rows] = await conn.query(
+        'SELECT id FROM interests WHERE name IN (?)',
+        [[...names]]
+      );
+      const ids = rows.map((r) => r.id);
+      await conn.execute('DELETE FROM user_interests WHERE user_id = ?', [userId]);
+      if (ids.length > 0) {
+        const values = ids.map((id) => [userId, id]);
+        await conn.query(
+          'INSERT INTO user_interests (user_id, interest_id) VALUES ?',
+          [values]
+        );
+      }
+    }
+
+    await conn.commit();
+    return res.json({ message: '설문 결과가 저장되었습니다.' });
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};

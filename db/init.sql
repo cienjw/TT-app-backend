@@ -4,15 +4,20 @@ SET NAMES utf8mb4;
 
 -- 유저
 CREATE TABLE users (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    kakao_id    VARCHAR(100)  UNIQUE,
-    google_id   VARCHAR(100)  UNIQUE,
-    nickname    VARCHAR(30)   NOT NULL,
-    profile_img VARCHAR(500),
-    bio         VARCHAR(200),
-    is_active   TINYINT(1)    DEFAULT 1,
-    created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    kakao_id          VARCHAR(100)    UNIQUE,
+    google_id         VARCHAR(100)    UNIQUE,
+    nickname          VARCHAR(30)     NOT NULL,
+    profile_img       VARCHAR(500),
+    bio               VARCHAR(200),
+    is_active         TINYINT(1)      DEFAULT 1,
+    survey_depth      DECIMAL(3,2)    NULL,
+    survey_virtuality DECIMAL(3,2)    NULL,
+    survey_collab     VARCHAR(10)     NULL,
+    survey_purpose    VARCHAR(10)     NULL,
+    mbti              VARCHAR(4)      NULL,
+    created_at        DATETIME        DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- 관심사 마스터 테이블 (운동, 음악, 독서 등)
