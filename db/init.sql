@@ -27,6 +27,15 @@ CREATE TABLE interests (
     category VARCHAR(50)  -- 예: 취미, 음식, 스포츠
 );
 
+-- 대기열 테이블
+CREATE TABLE matching_queue (
+    user_id     BIGINT UNSIGNED           PRIMARY KEY,
+    threshold   DECIMAL(3,2)     NOT NULL DEFAULT 0.85,
+    status      ENUM('waiting','matched') DEFAULT 'waiting',
+    joined_at   DATETIME                  DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- 유저-관심사 (N:M)
 CREATE TABLE user_interests (
     user_id     BIGINT UNSIGNED NOT NULL,

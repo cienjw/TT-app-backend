@@ -1,18 +1,28 @@
 const db = require('../config/db');
 const matchingService = require('../services/matching.service');
 
-// POST /api/matching/join — 매칭 참가
+// POST /api/matching/join — 대기열 등록
 exports.joinMatching = async (req, res) => {
   try {
-    const groupId = await matchingService.runMatchingForUser(req.user.userId);
-    return res.json({ message: '매칭 완료', groupId });
+    const { threshold } = req.body;
+    await matchingService.enqueue(req.user.userId, threshold ?? 0.85);
+    return res.json({ message: '대기열에 등록되었습니다.', status: 'waiting' });
   } catch (err) {
-    if (err.code === 'USER_NOT_FOUND') {
-      return res.status(401).json({ message: '다시 로그인해주세요.' });
-    }
-    console.error('Matching error:', err.message);
-    return res.status(500).json({ message: '매칭 중 오류가 발생했습니다.' });
+    console.error('Matching enqueue error:', err.message);
+    return res.status(500).json({ message: '매칭 등록 중 오류가 발생했습니다.' });
   }
+};
+
+// DELETE /api/matching — 대기 취소
+exports.cancelMatching = async (req, res) => {
+  await matchingService.dequeue(req.user.userId);
+  return res.json({ message: '매칭이 취소되었습니다.' });
+};
+
+// GET /api/matching/status — 대기 상태
+exports.getMatchingStatus = async (req, res) => {
+  const status = await matchingService.getStatus(req.user.userId);
+  return res.json({ status }); // 'waiting' | 'idle'
 };
 
 // GET /api/groups — 내 그룹 목록

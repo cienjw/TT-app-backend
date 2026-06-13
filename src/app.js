@@ -34,5 +34,13 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 // Socket.io 초기화
 initSocket(server);
 
+const matchingService = require('./services/matching.service');
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// 매칭 워커 (5초 주기)
+setInterval(() => {
+  matchingService.runMatchingCycle().catch((e) =>
+    console.error('matching worker:', e.message));
+}, 5000);
