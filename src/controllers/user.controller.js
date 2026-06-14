@@ -3,6 +3,7 @@ const db = require('../config/db');
 exports.getMe = async (req, res) => {
   const [[user]] = await db.execute(
     `SELECT u.id, u.nickname, u.profile_img, u.bio,
+            u.survey_depth, u.survey_virtuality, u.survey_collab, u.survey_purpose, u.mbti,
             JSON_ARRAYAGG(
               JSON_OBJECT('id', i.id, 'name', i.name, 'category', i.category)
             ) AS interests
@@ -132,4 +133,50 @@ exports.saveSurvey = async (req, res) => {
   } finally {
     conn.release();
   }
+};
+
+// POST /api/users/report — 신고
+exports.createReport = async (req, res) => {
+  const { target_id, reason } = req.body;
+  if (!target_id) return res.status(400).json({ message: '신고 대상이 없습니다.' });
+  await db.execute(
+    'INSERT INTO reports (reporter_id, target_id, reason) VALUES (?, ?, ?)',
+    [req.user.userId, target_id, reason ?? null]
+  );
+  return res.json({ message: '신고가 접수되었습니다.' });
+};
+
+// POST /api/users/block — 차단
+exports.blockUser = async (req, res) => {
+  const { target_id } = req.body;
+  if (!target_id) return res.status(400).json({ message: '차단 대상이 없습니다.' });
+  if (Number(target_id) === req.user.userId) {
+    return res.status(400).json({ message: '자기 자신은 차단할 수 없습니다.' });
+  }
+  await db.execute(
+    'INSERT IGNORE INTO blocks (blocker_id, blocked_id) VALUES (?, ?)',
+    [req.user.userId, target_id]
+  );
+  return res.json({ message: '차단되었습니다.' });
+};
+
+// DELETE /api/users/block/:targetId — 차단 해제
+exports.unblockUser = async (req, res) => {
+  await db.execute(
+    'DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?',
+    [req.user.userId, req.params.targetId]
+  );
+  return res.json({ message: '차단이 해제되었습니다.' });
+};
+
+// GET /api/users/blocks — 차단 목록
+exports.getBlockedUsers = async (req, res) => {
+  const [rows] = await db.execute(
+    `SELECT u.id, u.nickname, u.profile_img
+     FROM blocks b JOIN users u ON b.blocked_id = u.id
+     WHERE b.blocker_id = ?
+     ORDER BY b.created_at DESC`,
+    [req.user.userId]
+  );
+  return res.json(rows);
 };

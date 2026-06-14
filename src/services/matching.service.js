@@ -55,7 +55,14 @@ exports.runMatchingCycle = async () => {
       return;
     }
 
-    // 대기자 관심사 미리 로드
+    // 차단 관계 (양방향) 로드
+    const [blockRows] = await conn.query('SELECT blocker_id, blocked_id FROM blocks');
+    const blocked = new Set();
+    for (const b of blockRows) {
+      blocked.add(`${b.blocker_id}-${b.blocked_id}`);
+      blocked.add(`${b.blocked_id}-${b.blocker_id}`);
+    }
+
     const interests = {};
     for (const w of waiters) {
       interests[w.user_id] = await loadInterests(conn, w.user_id);
@@ -69,17 +76,29 @@ exports.runMatchingCycle = async () => {
       for (const cand of waiters) {
         if (cand.user_id === seed.user_id || used.has(cand.user_id)) continue;
         if (group.length >= 5) break;
+        // 그룹 내 누군가와 차단 관계면 제외
+        if (group.some((uid) => blocked.has(`${uid}-${cand.user_id}`))) continue;
+
         const sim = jaccard(interests[seed.user_id], interests[cand.user_id]);
-        // 양방향: 둘 중 더 까다로운 기준을 만족해야 함
         const need = Math.max(Number(seed.threshold), Number(cand.threshold));
         if (sim >= need) group.push(cand.user_id);
       }
 
       if (group.length >= 3) {
+        const [topRows] = await conn.query(
+          `SELECT i.name FROM user_interests ui JOIN interests i ON ui.interest_id = i.id
+           WHERE ui.user_id IN (?)
+           GROUP BY i.id ORDER BY COUNT(*) DESC, i.name LIMIT 2`,
+          [group]
+        );
+        const groupName = topRows.length
+          ? topRows.map((r) => r.name.split('/')[0]).join('·') + ' 모임'
+          : '새로운 모임';
+
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         const [r] = await conn.execute(
           "INSERT INTO `groups` (name, expires_at) VALUES (?, ?)",
-          ['새로운 모임', expiresAt]
+          [groupName, expiresAt]
         );
         const gid = r.insertId;
         await conn.query(
@@ -88,7 +107,7 @@ exports.runMatchingCycle = async () => {
         );
         await conn.query('DELETE FROM matching_queue WHERE user_id IN (?)', [group]);
         group.forEach((uid) => used.add(uid));
-        console.log(`### 매칭 성사: group ${gid}, members [${group.join(', ')}]`);
+        console.log(`### 매칭 성사: group ${gid} (${groupName}), members [${group.join(', ')}]`);
       }
     }
 

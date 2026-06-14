@@ -145,3 +145,46 @@ exports.getMessages = async (req, res) => {
 
   return res.json(result.reverse());
 };
+
+// PUT /api/groups/:id — 방 이름 변경
+exports.updateGroupName = async (req, res) => {
+  const groupId = req.params.id;
+  const { name } = req.body;
+
+  const [[member]] = await db.execute(
+    'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
+    [groupId, req.user.userId]
+  );
+  if (!member) return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
+  if (!name?.trim()) return res.status(400).json({ message: '이름을 입력해주세요.' });
+
+  await db.execute('UPDATE `groups` SET name = ? WHERE id = ?', [name.trim(), groupId]);
+  return res.json({ message: 'ok', name: name.trim() });
+};
+
+// DELETE /api/groups/:id/leave — 방 나가기
+exports.leaveGroup = async (req, res) => {
+  const groupId = req.params.id;
+  const userId = req.user.userId;
+
+  const [[member]] = await db.execute(
+    'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
+    [groupId, userId]
+  );
+  if (!member) return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
+
+  await db.execute(
+    'DELETE FROM group_members WHERE group_id = ? AND user_id = ?',
+    [groupId, userId]
+  );
+
+  // 남은 멤버가 없으면 방 만료 처리
+  const [[{ cnt }]] = await db.execute(
+    'SELECT COUNT(*) AS cnt FROM group_members WHERE group_id = ?',
+    [groupId]
+  );
+  if (cnt === 0) {
+    await db.execute("UPDATE `groups` SET status = 'expired' WHERE id = ?", [groupId]);
+  }
+  return res.json({ message: '그룹에서 나갔습니다.' });
+};

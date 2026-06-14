@@ -88,6 +88,15 @@ CREATE TABLE messages (
     INDEX idx_group_created (group_id, created_at)
 );
 
+CREATE TABLE blocks (
+    blocker_id  BIGINT UNSIGNED NOT NULL,
+    blocked_id  BIGINT UNSIGNED NOT NULL,
+    created_at  DATETIME        DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (blocker_id, blocked_id),
+    FOREIGN KEY (blocker_id)    REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (blocked_id)    REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- 발자취 (오프라인 만남 확인 시 기록)
 CREATE TABLE footprints (
     id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
