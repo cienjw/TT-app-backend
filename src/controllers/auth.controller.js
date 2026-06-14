@@ -17,19 +17,6 @@ function generateTokens(userId, nickname) {
   return { accessToken, refreshToken };
 }
 
-// 신규 가입자에게 환영 그룹 1개 자동 생성
-async function createWelcomeGroup(userId) {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const [result] = await db.execute(
-    'INSERT INTO `groups` (name, expires_at) VALUES (?, ?)',
-    ['첫 모임에 오신 걸 환영해요', expiresAt]
-  );
-  await db.execute(
-    'INSERT INTO group_members (group_id, user_id) VALUES (?, ?)',
-    [result.insertId, userId]
-  );
-}
-
 // POST /api/auth/kakao
 exports.kakaoLogin = async (req, res) => {
   const { access_token } = req.body;
@@ -67,7 +54,6 @@ exports.kakaoLogin = async (req, res) => {
       );
       userId = result.insertId;
       isNewUser = true;
-      await createWelcomeGroup(userId);  // 신규일 때만 환영 그룹
     }
 
     const tokens = generateTokens(userId, nickname);
@@ -118,7 +104,6 @@ exports.googleLogin = async (req, res) => {
       );
       userId = result.insertId;
       isNewUser = true;
-      await createWelcomeGroup(userId);
     }
 
     const tokens = generateTokens(userId, nickname);
@@ -161,9 +146,6 @@ exports.devLogin = async (req, res) => {
     [uniqueId, nickname]
   );
   const userId = result.insertId;
-
-  // 신규 가입자 환영 그룹
-  await createWelcomeGroup(userId);
 
   return res.json({ ...generateTokens(userId, nickname), userId });
 };
