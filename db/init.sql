@@ -18,7 +18,7 @@ CREATE TABLE users (
     mbti              VARCHAR(4)      NULL,
     created_at        DATETIME        DEFAULT CURRENT_TIMESTAMP,
     updated_at        DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    onboarded         TINYINT NOT NULL DEFAULT 0,
+    onboarded         TINYINT NOT NULL DEFAULT 0
 );
 
 -- 관심사 마스터 테이블 (운동, 음악, 독서 등)
