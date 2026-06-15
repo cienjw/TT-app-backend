@@ -4,7 +4,7 @@ const auth    = require('../middlewares/auth.middleware');
 const user    = require('../controllers/user.controller');
 
 router.get('/me',              auth, user.getMe);
-router.delete('/me', authMiddleware, userController.deleteAccount);
+router.delete('/me', auth, user.deleteAccount);
 router.put('/me/interests',    auth, user.updateInterests);
 router.put('/me/location',     auth, user.updateLocation);
 router.get('/interests',       auth, user.getAllInterests);
