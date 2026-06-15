@@ -63,9 +63,10 @@ exports.getGroupDetail = async (req, res) => {
   );
 
   const [members] = await db.execute(
-    `SELECT u.id, u.nickname, u.profile_img
-     FROM group_members gm JOIN users u ON gm.user_id = u.id
-     WHERE gm.group_id = ?`,
+    `SELECT u.id, u.nickname, u.profile_img,
+            gm.last_read_message_id AS lastReadId
+    FROM group_members gm JOIN users u ON gm.user_id = u.id
+    WHERE gm.group_id = ?`,
     [groupId]
   );
 
