@@ -180,3 +180,13 @@ exports.getBlockedUsers = async (req, res) => {
   );
   return res.json(rows);
 };
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    await db.execute('DELETE FROM users WHERE id = ?', [req.user.userId]);
+    return res.json({ message: '탈퇴되었습니다.' });
+  } catch (err) {
+    console.error('deleteAccount error:', err.message);
+    return res.status(500).json({ message: '탈퇴 처리 중 오류가 발생했습니다.' });
+  }
+};
