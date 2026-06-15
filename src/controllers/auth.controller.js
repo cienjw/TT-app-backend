@@ -36,28 +36,25 @@ exports.kakaoLogin = async (req, res) => {
 
     // 2. 기존 유저 조회
     const [[existing]] = await db.execute(
-      'SELECT id FROM users WHERE kakao_id = ?', [kakaoId]
+      'SELECT id, onboarded FROM users WHERE kakao_id = ?', [kakaoId]
     );
 
-    let userId;
-    let isNewUser;
+    let userId, onboarded;
 
     if (existing) {
-      // 기존 유저 — 닉네임 건드리지 않음 (사용자가 온보딩에서 정한 값 유지)
       userId = existing.id;
-      isNewUser = false;
+      onboarded = existing.onboarded === 1;
     } else {
-      // 신규 유저 — 카카오 닉네임으로 일단 생성 (온보딩에서 바꿀 예정)
       const [result] = await db.execute(
         'INSERT INTO users (kakao_id, nickname, profile_img) VALUES (?, ?, ?)',
         [kakaoId, nickname, profileImg]
       );
       userId = result.insertId;
-      isNewUser = true;
+      onboarded = false;
     }
 
     const tokens = generateTokens(userId, nickname);
-    return res.json({ ...tokens, isNewUser, userId });
+    return res.json({ ...tokens, isNewUser: !onboarded, userId });
 
   } catch (err) {
     console.error('Kakao login error:', err.message);
@@ -88,26 +85,25 @@ exports.googleLogin = async (req, res) => {
 
     // 기존 유저 조회
     const [[existing]] = await db.execute(
-      'SELECT id FROM users WHERE google_id = ?', [googleId]
+      'SELECT id, onboarded FROM users WHERE google_id = ?', [googleId]
     );
 
-    let userId;
-    let isNewUser;
+    let userId, onboarded;
 
     if (existing) {
       userId = existing.id;
-      isNewUser = false;
+      onboarded = existing.onboarded === 1;
     } else {
       const [result] = await db.execute(
         'INSERT INTO users (google_id, nickname, profile_img) VALUES (?, ?, ?)',
         [googleId, nickname, profileImg]
       );
       userId = result.insertId;
-      isNewUser = true;
+      onboarded = false;
     }
 
     const tokens = generateTokens(userId, nickname);
-    return res.json({ ...tokens, isNewUser, userId });
+    return res.json({ ...tokens, isNewUser: !onboarded, userId });
     
   } catch (err) {
     console.error('Google login error:', err.message);

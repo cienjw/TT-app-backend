@@ -101,11 +101,12 @@ exports.saveSurvey = async (req, res) => {
     // 성향 + MBTI 저장
     await conn.execute(
       `UPDATE users
-         SET survey_depth = ?, survey_virtuality = ?,
-             survey_collab = ?, survey_purpose = ?, mbti = ?
-       WHERE id = ?`,
+        SET survey_depth = ?, survey_virtuality = ?,
+            survey_collab = ?, survey_purpose = ?, mbti = ?,
+            onboarded = 1
+      WHERE id = ?`,
       [depth ?? null, virtuality ?? null,
-       collab ?? null, purpose ?? null, mbti ?? null, userId]
+      collab ?? null, purpose ?? null, mbti ?? null, userId]
     );
 
     // 분야 → 관심사 태그로 user_interests 갱신
