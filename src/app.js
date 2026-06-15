@@ -44,3 +44,9 @@ setInterval(() => {
   matchingService.runMatchingCycle().catch((e) =>
     console.error('matching worker:', e.message));
 }, 5000);
+
+// 채팅방 만료 체크 (1분 주기)
+setInterval(() => {
+  matchingService.expireOldGroups().catch((e) =>
+    console.error('expire worker:', e.message));
+}, 60000);

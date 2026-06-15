@@ -36,7 +36,7 @@ exports.getMyGroups = async (req, res) => {
      FROM \`groups\` g
      JOIN group_members gm ON g.id = gm.group_id
      JOIN group_members gm2 ON g.id = gm2.group_id
-     WHERE gm.user_id = ?
+     WHERE gm.user_id = ? AND g.status = 'active'
      GROUP BY g.id
      ORDER BY g.created_at DESC`,
     [req.user.userId]

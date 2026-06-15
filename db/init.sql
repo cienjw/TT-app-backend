@@ -69,6 +69,7 @@ CREATE TABLE group_members (
     group_id  BIGINT UNSIGNED NOT NULL,
     user_id   BIGINT UNSIGNED NOT NULL,
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_read_message_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (group_id, user_id),
     FOREIGN KEY (group_id) REFERENCES `groups`(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE

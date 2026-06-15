@@ -9,20 +9,22 @@ function initSocket(server) {
 
   // 1. 소켓 인증 미들웨어 — 연결 시 JWT 검증
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth?.token;
-    if (!token) {
-      return next(new Error('인증 토큰이 없습니다.'));
-    }
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.userId = decoded.userId;
-      socket.nickname = decoded.nickname;
-      const [[user]] = await db.execute(
-      'SELECT profile_img FROM users WHERE id = ?', [decoded.userId]
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    console.log('### 소켓 인증: 토큰 없음');
+    return next(new Error('인증 토큰이 없습니다.'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const [[user]] = await db.execute(
+      'SELECT nickname, profile_img FROM users WHERE id = ?', [decoded.userId]
     );
+    socket.userId = decoded.userId;
+    socket.nickname = user?.nickname ?? decoded.nickname;   // 본명 대신 DB 닉네임
     socket.profileImg = user?.profile_img ?? null;
     next();
   } catch (err) {
+    console.log('### 소켓 인증 실패:', err.name, err.message);   // ← 추가
     next(new Error('유효하지 않은 토큰입니다.'));
   }
 });
@@ -172,10 +174,22 @@ function initSocket(server) {
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: user ${socket.userId}`);
     });
+    
+    socket.on('mark_read', async ({ groupId, messageId }) => {
+      try {
+        const mid = Number(messageId);
+        if (!groupId || !mid) return;
+        await db.execute(
+          `UPDATE group_members SET last_read_message_id = ?
+            WHERE group_id = ? AND user_id = ? AND last_read_message_id < ?`,
+          [mid, groupId, socket.userId, mid]
+        );
+        io.to(`group_${groupId}`).emit('read_updated', {
+          userId: socket.userId, lastReadId: mid,
+        });
+      } catch (e) { console.error('mark_read error:', e.message); }
+    });
   });
-
-  // 반응 토글
-
 
   return io;
 }

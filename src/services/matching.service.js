@@ -119,3 +119,13 @@ exports.runMatchingCycle = async () => {
     conn.release();
   }
 };
+
+// 만료 시간이 지난 active 그룹을 expired로 전환
+exports.expireOldGroups = async () => {
+  const [r] = await db.execute(
+    "UPDATE `groups` SET status = 'expired' WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at < NOW()"
+  );
+  if (r.affectedRows > 0) {
+    console.log(`### ${r.affectedRows}개 그룹 만료됨`);
+  }
+};
