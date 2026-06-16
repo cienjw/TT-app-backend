@@ -1,5 +1,8 @@
 const db = require('../config/db');
+const gemini = require('../services/gemini.service');
 const matchingService = require('../services/matching.service');
+
+const lastCoach = {};
 
 // POST /api/matching/join — 대기열 등록
 exports.joinMatching = async (req, res) => {
@@ -188,4 +191,65 @@ exports.leaveGroup = async (req, res) => {
     await db.execute("UPDATE `groups` SET status = 'expired' WHERE id = ?", [groupId]);
   }
   return res.json({ message: '그룹에서 나갔습니다.' });
+};
+
+// GET /api/groups/:id/icebreakers
+exports.getIcebreakers = async (req, res) => {
+  const groupId = req.params.id;
+  const [[member]] = await db.execute(
+    'SELECT 1 FROM group_members WHERE group_id=? AND user_id=?', [groupId, req.user.userId]);
+  if (!member) return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
+
+  const [[g]] = await db.execute('SELECT icebreakers FROM `groups` WHERE id=?', [groupId]);
+  if (g?.icebreakers) return res.json({ icebreakers: JSON.parse(g.icebreakers) });
+
+  const [rows] = await db.execute(
+    `SELECT i.name FROM group_members gm
+     JOIN user_interests ui ON gm.user_id=ui.user_id
+     JOIN interests i ON ui.interest_id=i.id
+     WHERE gm.group_id=? GROUP BY i.name ORDER BY COUNT(*) DESC LIMIT 5`, [groupId]);
+  const interests = rows.map(r => r.name);
+
+  let qs;
+  try {
+    qs = await gemini.generateIcebreakers(interests);
+  } catch (e) {
+    console.error('icebreaker error:', e.message);
+    qs = ['요즘 가장 푹 빠져 있는 게 있나요?', '주말엔 보통 뭐 하며 보내세요?', '최근에 새로 시작한 게 있다면?'];
+  }
+  await db.execute('UPDATE `groups` SET icebreakers=? WHERE id=?', [JSON.stringify(qs), groupId]);
+  return res.json({ icebreakers: qs });
+};
+
+// POST /api/groups/:id/coach
+exports.getCoachTip = async (req, res) => {
+  const groupId = req.params.id;
+  const [[member]] = await db.execute(
+    'SELECT 1 FROM group_members WHERE group_id=? AND user_id=?', [groupId, req.user.userId]);
+  if (!member) return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
+
+  // 5분 쿨다운
+  const key = `${groupId}_${req.user.userId}`;
+  const now = Date.now();
+  if (lastCoach[key] && now - lastCoach[key] < 5 * 60 * 1000) {
+    const wait = Math.ceil((5 * 60 * 1000 - (now - lastCoach[key])) / 1000);
+    return res.status(429).json({ message: `${Math.ceil(wait/60)}분 후에 다시 쓸 수 있어요.` });
+  }
+
+  const [msgs] = await db.execute(
+    `SELECT u.nickname, m.content FROM messages m JOIN users u ON m.sender_id=u.id
+     WHERE m.group_id=? ORDER BY m.created_at DESC LIMIT 10`, [groupId]);
+  const [irows] = await db.execute(
+    `SELECT DISTINCT i.name FROM group_members gm
+     JOIN user_interests ui ON gm.user_id=ui.user_id
+     JOIN interests i ON ui.interest_id=i.id WHERE gm.group_id=? LIMIT 5`, [groupId]);
+
+  try {
+    const tip = await gemini.getConversationTip(msgs.reverse(), irows.map(r => r.name));
+    lastCoach[key] = now;
+    return res.json({ tip });
+  } catch (e) {
+    console.error('coach error:', e.message);
+    return res.status(500).json({ message: '조언을 가져오지 못했어요.' });
+  }
 };

@@ -8,5 +8,7 @@ router.get('/:id/messages', auth, group.getMessages);
 router.get('/:id',  auth, group.getGroupDetail);
 router.put('/:id',         auth, group.updateGroupName);
 router.delete('/:id/leave', auth, group.leaveGroup);
+router.get('/:id/icebreakers', auth, group.getIcebreakers);
+router.post('/:id/coach',      auth, group.getCoachTip);
 
 module.exports = router;

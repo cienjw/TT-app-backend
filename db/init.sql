@@ -57,12 +57,13 @@ CREATE TABLE user_locations (
 
 -- 그룹 (채팅방)
 CREATE TABLE `groups` (
-    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id          BIGINT UNSIGNED AUTO_INCREMENT   PRIMARY KEY,
     name        VARCHAR(100),
     status      ENUM('active', 'expired', 'met') DEFAULT 'active',
-    max_members TINYINT DEFAULT 5,
-    expires_at  DATETIME,  -- 생성 후 7일 뒤 자동 만료
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    max_members TINYINT                          DEFAULT 5,
+    icebreakers TEXT                             NULL,
+    expires_at  DATETIME,                        -- 생성 후 7일 뒤 자동 만료
+    created_at  DATETIME                         DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 그룹 멤버 (N:M)

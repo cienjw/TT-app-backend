@@ -102,38 +102,3 @@ exports.createFootprint = async (req, res) => {
 
   return res.json({ message: '만남이 기록되었어요!' });
 };
-
-exports.createFootprint = async (req, res) => {
-  const { group_id, latitude, longitude } = req.body;
-  const userId = req.user.userId;
-
-  if (!group_id || latitude == null || longitude == null) {
-    return res.status(400).json({ message: 'group_id, latitude, longitude가 필요합니다.' });
-  }
-
-  const [[member]] = await db.execute(
-    'SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?',
-    [group_id, userId]
-  );
-  if (!member) return res.status(403).json({ message: '그룹 멤버가 아닙니다.' });
-
-  // 같은 날 같은 그룹은 한 번만(같은 만남) → 위치만 갱신
-  // 다른 날 만나면 새 기록으로 누적
-  const [[today]] = await db.execute(
-    'SELECT id FROM footprints WHERE user_id = ? AND group_id = ? AND DATE(met_at) = CURDATE()',
-    [userId, group_id]
-  );
-  if (today) {
-    await db.execute(
-      'UPDATE footprints SET latitude = ?, longitude = ?, met_at = NOW() WHERE id = ?',
-      [latitude, longitude, today.id]
-    );
-  } else {
-    await db.execute(
-      'INSERT INTO footprints (user_id, group_id, latitude, longitude) VALUES (?, ?, ?, ?)',
-      [userId, group_id, latitude, longitude]
-    );
-  }
-
-  return res.json({ message: '만남이 기록되었어요!' });
-};
