@@ -76,6 +76,11 @@ function initSocket(server) {
           [groupId, socket.userId, content.trim(), replyToId ?? null]
         );
 
+        await db.execute(
+          'UPDATE `groups` SET expires_at = DATE_ADD(NOW(), INTERVAL 3 DAY) WHERE id = ?',
+          [groupId]
+        );
+
         const [[sender]] = await db.execute(
           'SELECT nickname, profile_img FROM users WHERE id = ?',
           [socket.userId]

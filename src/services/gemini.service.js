@@ -5,7 +5,14 @@ const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:ge
 async function callGemini(prompt) {
   const { data } = await axios.post(
     URL,
-    { contents: [{ parts: [{ text: prompt }] }] },
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        thinkingConfig: { thinkingBudget: 0 },   // ← 2.5-flash thinking off (속도 핵심)
+        maxOutputTokens: 500,
+        temperature: 1.0,
+      },
+    },
     { headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'Content-Type': 'application/json' } }
   );
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
